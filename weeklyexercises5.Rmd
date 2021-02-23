@@ -109,6 +109,8 @@ ggplotly(cv19)
   
   
   2. Use animation to tell an interesting story with the `small_trains` dataset that contains data from the SNCF (National Society of French Railways). These are Tidy Tuesday data! Read more about it [here](https://github.com/rfordatascience/tidytuesday/tree/master/data/2019/2019-02-26).
+  
+  My goal here was to see how many late arrivals there were according to the station and the month. 
 
 ```{r, eval= FALSE, echo=FALSE}
 avg_delay_seventeen<- small_trains %>% 
@@ -123,9 +125,10 @@ avg_delay_seventeen<- small_trains %>%
   labs(title = "Number Arriving Late vs. Station",
        x = "Times Late",
        y = "") +
-  transition_states(month)
-
-
+  transition_states(month,
+                    transition_length = 9, 
+                    state_length = 12) +
+    scale_color_viridis_c()
 ```
 
 ```{r, eval=FALSE, echo=FALSE}
@@ -153,9 +156,27 @@ garden_harvest %>%
   group_by(date, variety) %>% 
   summarize(daily_harvest_lb = sum(weight)*0.00220462) %>% 
   ungroup() %>% 
-  complete(variety, date, fill = list(daily_harvest_lb = 0))
+  complete(variety, date, fill = list(daily_harvest_lb = 0)) %>%
+  mutate(cum_harvest_variety = cumsum(daily_harvest_lb),
+         leasttomost = fct_reorder(variety, daily_harvest_lb)) %>%
+  ggplot(aes(x = date, 
+             y =cum_harvest_variety,
+             fill = leasttomost)) + 
+  geom_area() +
+  labs(title = "Cumulative Harvest of Tomatoes by Month", fill = "Variety of Tomatoes") + 
+  transition_reveal(date)
+
 ```
 
+
+```{r, eval=FALSE, echo=FALSE}
+anim_save("tomatoharvest.gif")
+
+```
+
+```{r, echo=FALSE}
+knitr::include_graphics("tomatoharvest.gif")
+```
 
 ## Maps, animation, and movement!
 
@@ -163,76 +184,160 @@ garden_harvest %>%
   Requirements:
   * Plot on a map using `ggmap`.  
 ```{r}
-
+mallorca_map <- get_stamenmap(
+    bbox = c(left = 2.2467, bottom = 39.3782, right = 3.5266, top = 39.9227), 
+    maptype = "terrain",
+    zoom = 9
+)
 ```
   
-  * Show "current" location with a red point.
 ```{r}
-
+ggmap(mallorca_map) +
+  geom_path(data = mallorca_bike_day7, 
+            aes(x = lon, y = lat),
+            size = .3) +
+  theme_map()
 ```
-  
+   * Show "current" location with a red point.
   * Show path up until the current point.
+  * Color the path according to elevation.
+  Add something of your own! And comment on if you prefer this to the static map and why or why not.
+  
+  I changed the color scheme and YES I do prefer this to the static map because you can track the specific elevation and progress over time, which is very cool in my opinion. 
+  
 ```{r}
+ggmap(mallorca_map) +
+  geom_path(data = mallorca_bike_day7, 
+            aes(x = lon, y = lat, color = ele),
+            size = .3) +
+  geom_point(data = mallorca_bike_day7,
+             aes(x = lon, y = lat),
+             color = "red",
+             size = 2) +
+  scale_color_viridis_c(option = "magma") +
+   transition_reveal(along = time) +
+  labs(title = "Biking Data",
+       subtitle = "Time: {frame_along}") +
+    theme_map() +
+   theme(legend.background = element_blank(),
+        legend.position = "right") +
+  labs(title = "Bike Ride in Mallorca on March 16th, 2018",
+       fill = "Elevation")
+
+```
+
+
+```{r, eval=FALSE, echo=FALSE}
+anim_save("mallorcamap.gif")
+
+```
+
+```{r, echo=FALSE}
+knitr::include_graphics("mallorcamap.gif")
 
 ```
   
-  * Color the path according to elevation.  
+  
+  5. In this exercise, you get to meet my sister, Heather! She is a proud Mac grad, currently works as a Data Scientist at 3M where she uses R everyday, and for a few years (while still holding a full-time job) she was a pro triathlete. You are going to map one of her races. The data from each discipline of the Ironman 70.3 Pan Am championships, Panama is in a separate file - `panama_swim`, `panama_bike`, and `panama_run`. Create a similar map to the one you created with my cycling data. You will need to make some small changes: 1. combine the files (HINT: `bind_rows()`)
 ```{r}
+bind <- bind_rows(panama_swim,
+                  panama_bike,
+                  panama_run)
 
+panama_map <- get_stamenmap(
+   bbox = c(left = -79.6114, bottom = 8.8944, right = -79.4241, top = 8.99), 
+    maptype = "terrain",
+    zoom = 13)
+
+ggmap(panama_map) +
+  geom_path(data = bind,
+            aes(x = lon, y = lat),
+            size = .4) +
+  geom_point(data = bind,
+             aes(x = lon, y = lat, color = event),
+             size = 2) +
+  scale_color_viridis_d(option = "magma") +
+   transition_reveal(along = time) +
+  labs(title = "Biking Data",
+       subtitle = "Time: {frame_along}") +
+    theme_map() +
+   theme(legend.background = element_blank(),
+        legend.position = "right")  +
+  labs(title = "Ironman 70.3 Pan Am Championship Progress", 
+       fill = "Event")
 ```
   
-  * Show the time in the subtitle. 
-```{r}
+
+```{r, eval=FALSE, echo=FALSE}
+anim_save("panamamap.gif")
 
 ```
-  
-  * CHALLENGE: use the `ggimage` package and `geom_image` to add a bike image instead of a red point. 
-  
-```{r}
+
+```{r, echo=FALSE}
+knitr::include_graphics("panamamap.gif")
 
 ```
-  
-  * Add something of your own! And comment on if you prefer this to the static map and why or why not.
-```{r}
 
-```
-  
-  
-  5. In this exercise, you get to meet my sister, Heather! She is a proud Mac grad, currently works as a Data Scientist at 3M where she uses R everyday, and for a few years (while still holding a full-time job) she was a pro triathlete. You are going to map one of her races. The data from each discipline of the Ironman 70.3 Pan Am championships, Panama is in a separate file - `panama_swim`, `panama_bike`, and `panama_run`. Create a similar map to the one you created with my cycling data. You will need to make some small changes: 1. combine the files (HINT: `bind_rows()`, 2. make the leading dot a different color depending on the event (for an extra challenge, make it a different image using `geom_image()!), 3. CHALLENGE (optional): color by speed, which you will need to compute on your own from the data. You can read Heather's race report [here](https://heatherlendway.com/2016/02/10/ironman-70-3-pan-american-championships-panama-race-report/). She is also in the Macalester Athletics [Hall of Fame](https://athletics.macalester.edu/honors/hall-of-fame/heather-lendway/184) and still has records at the pool. 
-  
-```{r}
-
-```
-  
 ## COVID-19 data
 
   6. In this exercise, you are going to replicate many of the features in [this](https://aatishb.com/covidtrends/?region=US) visualization by Aitish Bhatia but include all US states. Requirements:
  * Create a new variable that computes the number of new cases in the past week (HINT: use the `lag()` function you've used in a previous set of exercises). Replace missing values with 0's using `replace_na()`. 
-```{r}
-
-```
- 
   * Filter the data to omit rows where the cumulative case counts are less than 20.  
-```{r}
-
-```
-  
   * Create a static plot with cumulative cases on the x-axis and new cases in the past 7 days on the y-axis. Connect the points for each state over time. HINTS: use `geom_path()` and add a `group` aesthetic.  Put the x and y axis on the log scale and make the tick labels look nice - `scales::comma` is one option. This plot will look pretty ugly as is.
-```{r}
-
-```
-  
-  * Animate the plot to reveal the pattern by date. Display the date as the subtitle. Add a leading point to each state's line (`geom_point()`) and add the state name as a label (`geom_text()` - you should look at the `check_overlap` argument).  
-```{r}
-
-```
-  
-  * Use the `animate()` function to have 200 frames in your animation and make it 30 seconds long. 
+  Animate the plot to reveal the pattern by date. Display the date as the subtitle. Add a leading point to each state's line (`geom_point()`) and add the state name as a label (`geom_text()` - you should look at the `check_overlap` argument). 
+  * Animate the plot to reveal the pattern by date. Display the date as the subtitle. Add a leading point to each state's line (`geom_point()`) and add the state name as a label (`geom_text()` - you should look at the `check_overlap` argument). 
+   * Use the `animate()` function to have 200 frames in your animation and make it 30 seconds long. 
   * Comment on what you observe.
+  
+  Well first, we can clearly see that the states with the highest population, like Texas and California, have the greatest increase in COVID-19 cases. This is not shocking. We can also see how NY quickly peaked, and then gradually cases decreased. We see a general rise in cases, which seemed to quicken in the fall and early winter. 
+ 
 ```{r}
+cumcasescovid19 <- covid19 %>%
+  group_by(state) %>%
+  mutate(lagcases = lag(cases, 7, order_by = date)) %>%
+  replace_na(list(lagcases = 0)) %>%
+  ungroup() %>%
+  mutate(newcases = cases - lagcases) %>%
+  filter(cases >= 20) %>%
+  mutate(newstate = fct_reorder2(state, date, cases)) %>%
+  group_by(newstate) %>%
+  arrange(newstate, date) %>%
+
+   ggplot(aes(x = cases, y = newcases, group = newstate)) +
+  geom_path(color = "blue",
+            size = .4) +
+  geom_point(color = "gray",
+             size = .6) +
+  geom_text(aes(label = newstate),
+            check_overlap = TRUE) +
+  scale_y_log10(breaks = scales::trans_breaks("log10",
+                                              function(x) 10^x),
+                labels = scales::comma) + 
+  scale_x_log10(breaks = scales::trans_breaks("log10",
+                                              function(x) 10^x),
+                labels = scales::comma) +
+  labs(title = "Total Cases vs. New Cases by State",
+       subtitle = "Date: {frame_along}", 
+       x = "Total Cases",
+       y = "New Cases") +
+  transition_reveal(date)
+
+
+animate(cumcasescovid19,
+        nframes = 200,
+        duration = 30)
+```
+
+```{r, eval=FALSE, echo=FALSE}
+anim_save("covid19cases.gif")
+```
+
+
+```{r, echo=FALSE}
+knitr::include_graphics("covid19cases.gif")
 
 ```
-  
+
   7. In this exercise you will animate a map of the US, showing how cumulative COVID-19 cases per 10,000 residents has changed over time. This is similar to exercises 11 & 12 from the previous exercises, with the added animation! So, in the end, you should have something like the static map you made there, but animated over all the days. The code below gives the population estimates for each state and loads the `states_map` data. Here is a list of details you should include in the plot:
   
 ```{r}
@@ -246,17 +351,54 @@ states_map <- map_data("state")
   
   * Put date in the subtitle.   
   * Because there are so many dates, you are going to only do the animation for all Fridays. So, use `wday()` to create a day of week variable and filter to all the Fridays.
+    * Use the `animate()` function to make the animation 200 frames instead of the default 100 and to pause for 10 frames on the end frame.   
+  * Use `group = date` in `aes()`. 
+    * Comment on what you see. 
+    
+The clearest trend we can see is over time, COVID19 cases increased in all states. We see that the West Coast, where COVID19 stated seemed to stay mostly one color, which is quite interesting. We also see the trend of the Midwests covid19 cases rising. The East Coast's colors did not change too much, which could be attributed (as is) to the high density population in that area. I really like this map. 
 ```{r}
+covid_with_2018_pop <- covid19 %>%
+  mutate(state = str_to_lower(state),
+         weekday = wday(date, label = TRUE))%>%
+  filter(weekday == "Fri") %>%
+  left_join(census_pop_est_2018,
+            by = c("state")) %>%
+    mutate(covid_per_10000 = (cases/est_pop_2018)*10000) %>%
+  ggplot(aes(fill = covid_per_10000,
+             group = date)) +
+  geom_map(map = states_map,
+           aes(map_id = state)) + 
+  expand_limits(x = states_map$long, 
+                y = states_map$lat) + 
+  theme_map() +
+  theme(legend.background = element_blank(),
+        legend.position = "bottom") +
+  labs (title = "Proportion of Cumulative Covid-19 Cases Per 10,000 People",
+         subtitle = "Date: {closest_state}",
+        fill = "") +
+   transition_states(date, transition_length = 0)
+
+animate(covid_with_2018_pop,
+        nframes = 200,
+        end_pause = 10)
+
+
+anim_save("covid19per10000.gif")
+knitr::include_graphics("covid19per10000.gif")
+
 
 ```
-  
-  * Use the `animate()` function to make the animation 200 frames instead of the default 100 and to pause for 10 frames on the end frame.   
-  * Use `group = date` in `aes()`.   
-  * Comment on what you see.  
-```{r}
+
+```{r, eval=FALSE, echo=FALSE}
+anim_save("covid19per10000.gif")
+```
+
+
+```{r, echo=FALSE}
+knitr::include_graphics("covid19per10000.gif")
 
 ```
-  
+
 
 
 ## Your first `shiny` app (for next week!)
